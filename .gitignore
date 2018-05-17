@@ -1,0 +1,8 @@
+obj/
+bin
+lib
+.d
+*.sublime-project
+*.sublime-workspace
+.gdb_history
+.vscode
