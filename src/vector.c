@@ -1,6 +1,7 @@
 #include "vector.h"
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>
 
 void somr_vector_normalize(double *v, unsigned int length) {
     assert(length > 0);
@@ -32,8 +33,15 @@ double somr_vector_euclid_dist(double *lhs, double *rhs, unsigned int length) {
     return sqrt(somr_vector_euclid_dist_squared(lhs, rhs, length));
 }
 
-void somr_vector_mean_3(double *v1, double *v2, double *v3, double *result, unsigned int length) {
+void somr_vectors_mean(double **vectors, unsigned int vectors_count, unsigned int length, double *result) {
+    assert(length > 0);
+    assert(vectors_count > 0);
+
     for (unsigned int i = 0; i < length; i++) {
-        result[i] = (v1[i] + v2[i] + v3[i]) / 3.0;
+        double sum = 0.0;
+        for (unsigned int j = 0; j < vectors_count; j++) {
+            sum += vectors[j][i];
+        }
+        result[i] = sum / (double) vectors_count;
     }
 }

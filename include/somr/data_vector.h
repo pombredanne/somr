@@ -11,5 +11,5 @@ typedef struct somr_data_vector_t {
 } somr_data_vector_t;
 
 void somr_data_vector_init_batch(somr_data_vector_t *batch, unsigned int batch_size, unsigned int features_count);
-void somr_data_vector_clear_batch(somr_data_vector_t *batch);
+void somr_data_vector_clear_batch(somr_data_vector_t *batch, unsigned int batch_size);
 void somr_data_vector_normalize(somr_data_vector_t *v, unsigned int features_count);

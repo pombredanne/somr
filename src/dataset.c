@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for strtok_r
+#define _GNU_SOURCE // for strtok_r and rand_r
 #include "dataset.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -34,9 +34,14 @@ void somr_dataset_init_from_parent(somr_dataset_t *d, somr_dataset_t *parent, un
 
 void somr_dataset_clear(somr_dataset_t *d) {
     free(d->indices);
+    d->indices = NULL;
     if (!d->has_parent) {
+        somr_data_vector_clear_batch(d->data_vectors, d->size);
         free(d->data_vectors);
+        d->data_vectors = NULL;
         somr_list_clear(d->class_list);
+        free(d->class_list);
+        d->class_list = NULL;
     }
 }
 
@@ -54,9 +59,9 @@ char *somr_dataset_get_class(somr_dataset_t *d, somr_label_t label) {
     return somr_list_get(d->class_list, label);
 }
 
-void somr_dataset_shuffle(somr_dataset_t *d) {
+void somr_dataset_shuffle(somr_dataset_t *d, unsigned int *rand_state) {
     for (int i = 0; i < d->size; i++) {
-        unsigned int index = rand() % d->size;
+        unsigned int index = rand_r(rand_state) % d->size;
         unsigned int swap = d->indices[i];
         d->indices[i] = d->indices[index];
         d->indices[index] = swap;

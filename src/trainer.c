@@ -1,9 +1,16 @@
+#define _GNU_SOURCE // for rand_r
 #include "trainer.h"
+#include "map_grow.h"
 #include "vector.h"
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+static somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t);
+static void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id);
+static void somr_trainer_deepen(somr_trainer_t *t);
+static void somr_trainer_run_epoch(somr_trainer_t *t, double radius, double learn_rate);
 
 void somr_trainer_init(somr_trainer_t *t, somr_map_t *map, somr_dataset_t *dataset, double root_mean_error, double parent_mean_error, somr_trainer_settings_t *settings) {
     assert(map->features_count == dataset->features_count);
@@ -13,7 +20,6 @@ void somr_trainer_init(somr_trainer_t *t, somr_map_t *map, somr_dataset_t *datas
     assert(settings->tau_1 >= 0.0 && settings->tau_1 <= 1.0);
     assert(settings->tau_2 >= 0.0 && settings->tau_2 <= 1.0);
     assert(settings->lambda > 0);
-    assert(settings->max_iters_count > 0);
     //assert(dataset->size >= map->nodes_count);
 
     t->map = map;
@@ -24,22 +30,17 @@ void somr_trainer_init(somr_trainer_t *t, somr_map_t *map, somr_dataset_t *datas
     t->settings = settings;
 }
 
-void somr_trainer_clear(somr_trainer_t *t) {
-    return;
-}
-
 void somr_trainer_train(somr_trainer_t *t) {
     double error_threshold = t->settings->tau_1 * t->parent_mean_error;
 
-    for (unsigned int i = 0; i < t->settings->max_iters_count; i++) {
+    while (true) {
         // TODO check best radius formula
-        //unsigned int radius = sqrt(t->map->width * t->map->height) / 2;
-        //unsigned int radius = floor((sqrt(t->map->nodes_count / 2.0) - 1.0) / 2.0);
-        double radius = sqrt(t->map->nodes_count) + 1;
-
-        for (unsigned int j = 0; j < t->settings->lambda; j++) {
+        double radius = sqrt(t->map->nodes_count) / 2;
+        //double radius = floor((sqrt(t->map->nodes_count / 2.0) - 1.0) / 2.0);
+        //double radius = sqrt(t->map->nodes_count) + 1;
+        for (unsigned int i = 0; i < t->settings->lambda; i++) {
             // linear decay of learning factor and radius
-            double decay = (double) j / (double) t->settings->lambda;
+            double decay = (double) i / (double) t->settings->lambda;
 
             double decayed_learn_rate = t->settings->learn_rate * (1.0 - decay);
             assert(decayed_learn_rate > 0.0 && decayed_learn_rate <= t->settings->learn_rate);
@@ -66,66 +67,47 @@ void somr_trainer_train(somr_trainer_t *t) {
     somr_trainer_label(t);
 }
 
-void somr_trainer_run_epoch(somr_trainer_t *t, double radius, double learn_rate) {
+static void somr_trainer_run_epoch(somr_trainer_t *t, double radius, double learn_rate) {
     assert(learn_rate > 0.0 && learn_rate < 1.0);
     assert(radius > 0.0);
 
     // pre-allocate array that will contain list of bmus
-    somr_node_id_t *bmus = malloc(sizeof(somr_node_id_t) * t->map->nodes_count);
+    // somr_node_id_t *bmus = malloc(sizeof(somr_node_id_t) * t->map->nodes_count);
+
     // randomize data set
-    somr_dataset_shuffle(t->dataset);
+    somr_dataset_shuffle(t->dataset, &t->settings->rand_state);
 
     // find bmu for each vector in data set and teach its neighborhood
     for (unsigned int i = 0; i < t->dataset->size; i++) {
         somr_data_vector_t *data_vector = somr_dataset_get_vector(t->dataset, i);
 
-        // find all bmus (we may found several)
-        unsigned int bmu_count;
-        somr_map_find_bmus(t->map, data_vector, bmus, &bmu_count);
-        assert(bmu_count > 0);
+        // // find all bmus (we may found several)
+        // unsigned int bmu_count;
+        // somr_map_find_bmus(t->map, data_vector, bmus, &bmu_count);
+        // assert(bmu_count > 0);
 
-        // randomly pick one bmu if we have several candidates
-        somr_node_id_t bmu_id;
-        if (bmu_count > 1) {
-            unsigned int index = rand() % bmu_count;
-            bmu_id = bmus[index];
-        } else {
-            bmu_id = bmus[0];
-        }
-        bmu_id = somr_map_find_bmu(t->map, data_vector);
-
-        // gaussian neighborhood
-        double bmu_y = bmu_id / t->map->width;
-        double bmu_x = bmu_id % t->map->width;
-        // TODO avoid loop on all nodes ?
-        for (unsigned int y = 0; y < t->map->height; y++) {
-            unsigned int row_begin = y * t->map->width;
-            double dist_y = bmu_y - y;
-            double dist_y_square = dist_y * dist_y;
-            for (unsigned int x = 0; x < t->map->width; x++) {
-                somr_node_id_t somr_node_id = row_begin + x;
-                double dist_x = bmu_x - x;
-                // compute euclidean distance
-                double dist = sqrt(dist_x * dist_x + dist_y_square);
-                // compute gaussian attenuation factor
-                double nbhd_factor = learn_rate * exp(-1.0 * (dist * dist) / (2.0 * radius * radius));
-                if (nbhd_factor > 0.0) {
-                    // teach node
-                    somr_node_learn(&t->map->nodes[somr_node_id], data_vector, t->features_count, nbhd_factor);
-                }
-            }
-        }
+        // // randomly pick one bmu if we have several candidates
+        // somr_node_id_t bmu_id;
+        // if (bmu_count > 1) {;
+        //     unsigned int index = rand_r(&t->settings->rand_state) % bmu_count;
+        //     bmu_id = bmus[index];
+        // } else {
+        //     bmu_id = bmus[0];
+        // }
+        somr_node_id_t bmu_id = somr_map_find_bmu(t->map, data_vector);
+        somr_map_teach_nbhd(t->map, bmu_id, data_vector, learn_rate, radius);
     }
 
-    free(bmus);
+    // free(bmus);
 }
 
-somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t) {
+static somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t) {
     // reset error for all nodes
     for (somr_node_id_t i = 0; i < t->map->nodes_count; i++) {
         t->map->nodes[i].error = 0.0;
     }
 
+    // find bmu for each data vector and add weights delta to error
     for (unsigned int i = 0; i < t->dataset->size; i++) {
         somr_data_vector_t *data_vector = somr_dataset_get_vector(t->dataset, i);
         somr_node_id_t bmu_id = somr_map_find_bmu(t->map, data_vector);
@@ -134,6 +116,7 @@ somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t) {
         assert(bmu->error >= 0.0);
     }
 
+    // compute mean error of map, and locate node with max error
     double sum = 0.0;
     unsigned int count = 0;
     double max_error = 0.0;
@@ -145,6 +128,7 @@ somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t) {
         sum += node->error;
         count++;
 
+        // TODO randomly pick one if several with same error?
         if (node->error > max_error) {
             max_error = node->error;
             error_node_id = i;
@@ -154,43 +138,41 @@ somr_node_id_t somr_trainer_compute_error(somr_trainer_t *t) {
     assert(count > 0);
     assert(sum >= 0.0);
     t->map->mean_error = sum / count;
-    assert(t->map->mean_error >= 0.0);
 
     assert(error_node_id != t->map->nodes_count);
     return error_node_id;
 }
 
-void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id) {
+static void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id) {
     double *error_weights = t->map->nodes[error_node_id].weights;
 
-    // find node coordinates
     int error_node_y = error_node_id / t->map->width;
     int error_node_x = error_node_id % t->map->width;
 
-    double max_delta = -1.0;
     somr_node_id_t nb_ids[4];
     unsigned int nbs_count = 0;
 
+    // locate available immediate neighbors (UP/DOWN/LEFT/RIGHT) of error node
     if (error_node_x > 0) {
         nb_ids[nbs_count] = error_node_id - 1;
         nbs_count++;
     }
-
     if (error_node_x < t->map->width - 1) {
         nb_ids[nbs_count] = error_node_id + 1;
         nbs_count++;
     }
-
     if (error_node_y > 0) {
         nb_ids[nbs_count] = (error_node_y - 1) * t->map->width + error_node_x;
         nbs_count++;
     }
-
     if (error_node_y < t->map->height - 1) {
         nb_ids[nbs_count] = (error_node_y + 1) * t->map->width + error_node_x;
         nbs_count++;
     }
 
+    // find neighbor with biggest weights delta
+    // TODO randomly pick one if several with same delta ?
+    double max_delta = -1.0;
     assert(nbs_count > 0);
     somr_node_id_t max_delta_nb_id = t->map->nodes_count;
     for (unsigned int i = 0; i < nbs_count; i++) {
@@ -198,7 +180,7 @@ void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id) {
         assert(nb_id < t->map->nodes_count);
 
         double *nb_weights = t->map->nodes[nb_id].weights;
-        double delta = somr_vector_euclid_dist(nb_weights, error_weights, t->features_count);
+        double delta = somr_vector_euclid_dist_squared(nb_weights, error_weights, t->features_count);
         if (delta > max_delta) {
             max_delta_nb_id = nb_id;
             max_delta = delta;
@@ -207,6 +189,8 @@ void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id) {
 
     assert(max_delta >= 0.0);
     assert(max_delta_nb_id < t->map->nodes_count);
+
+    // insert row or column between error node and max delta neighbor
     if (max_delta_nb_id == error_node_id + 1) {
         assert(error_node_x < t->map->width - 1);
         somr_map_insert_col(t->map, error_node_x);
@@ -223,15 +207,7 @@ void somr_trainer_expand(somr_trainer_t *t, somr_node_id_t error_node_id) {
     }
 }
 
-// unsigned int depth = 0;
-// unsigned int max_depth = 10000;
-
-void somr_trainer_deepen(somr_trainer_t *t) {
-    // if (depth >= max_depth) {
-    //     return;
-    // }
-    // depth++;
-
+static void somr_trainer_deepen(somr_trainer_t *t) {
     // pre-alloc
     unsigned int *data_vectors_indices = malloc(sizeof(unsigned int) * t->dataset->size);
 
@@ -254,12 +230,12 @@ void somr_trainer_deepen(somr_trainer_t *t) {
             }
         }
         assert(data_vectors_count > 1);
-        // TODO
+        // TODO check
         // if (data_vectors_count < 4) {
         //     continue;
         // }
 
-        somr_map_add_child(t->map, i);
+        somr_map_add_child(t->map, i, t->settings->should_orient, &t->settings->rand_state);
 
         somr_dataset_t child_dataset;
         somr_dataset_init_from_parent(&child_dataset, t->dataset, data_vectors_indices, data_vectors_count);
@@ -269,7 +245,6 @@ void somr_trainer_deepen(somr_trainer_t *t) {
         somr_trainer_train(&child_trainer);
 
         somr_dataset_clear(&child_dataset);
-        somr_trainer_clear(&child_trainer);
     }
 
     free(data_vectors_indices);
@@ -280,6 +255,9 @@ void somr_trainer_label(somr_trainer_t *t) {
     for (somr_node_id_t i = 0; i < t->map->nodes_count; i++) {
         t->map->nodes[i].label = SOMR_EMPTY_LABEL;
     }
+
+    // randomize data set
+    somr_dataset_shuffle(t->dataset, &t->settings->rand_state);
 
     // find bmu for each input vector and assign vector label to bmu
     for (unsigned int i = 0; i < t->dataset->size; i++) {

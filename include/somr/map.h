@@ -1,6 +1,7 @@
 #pragma once
 #include "data_vector.h"
 #include "node.h"
+#include <stdio.h>
 
 typedef unsigned int somr_node_id_t;
 
@@ -19,21 +20,20 @@ typedef struct somr_map_t {
     double mean_error;
 } somr_map_t;
 
-void somr_map_init(somr_map_t *n, unsigned int features_count);
-void somr_map_clear(somr_map_t *n);
-void somr_map_init_weights(somr_map_t *n, double *weights);
-void somr_map_activate(somr_map_t *n, somr_data_vector_t *data_vector);
+void somr_map_init(somr_map_t *m, unsigned int features_count);
+void somr_map_clear(somr_map_t *m);
+void somr_map_init_random_weights(somr_map_t *m, unsigned int *rand_state);
+void somr_map_activate(somr_map_t *m, somr_data_vector_t *data_vector);
 /** @return first best matching unit found for @p data_vector */
-somr_node_id_t somr_map_find_bmu(somr_map_t *n, somr_data_vector_t *data_vector);
+somr_node_id_t somr_map_find_bmu(somr_map_t *m, somr_data_vector_t *data_vector);
 /**
 fills @p[out] bmus with all equally-activated best matching units for @p vector
 @pre @p bmus must be allocated with enough space (ie potentially the number of nodes in map)
 */
-void somr_map_find_bmus(somr_map_t *n, somr_data_vector_t *data_vector, somr_node_id_t *bmus, unsigned int *bmu_count);
+//void somr_map_find_bmus(somr_map_t *m, somr_data_vector_t *data_vector, somr_node_id_t *bmus, unsigned int *bmu_count);
+void somr_map_teach_nbhd(somr_map_t *m, somr_node_id_t node_id, somr_data_vector_t *data_vector, double learn_rate, double radius);
+unsigned int somr_map_get_depth(somr_map_t *m);
 /** maps input vector @p vector to a class, by returnig label of its best matching unit */
-somr_label_t somr_map_classify(somr_map_t *n, somr_data_vector_t *data_vector);
-void somr_map_insert_row(somr_map_t *n, unsigned int row_before);
-void somr_map_insert_col(somr_map_t *n, unsigned int col_before);
-void somr_map_add_child(somr_map_t *n, somr_node_id_t somr_node_id);
-void somr_map_print_topology(somr_map_t *n);
-void somr_map_write_to_img(somr_map_t *n, unsigned char *img, unsigned int img_width, unsigned int img_height, unsigned char *colors);
+somr_label_t somr_map_classify(somr_map_t *m, somr_data_vector_t *data_vector);
+//void somr_map_find_error_range(somr_map_t *, double *min_error, double *max_error);
+void somr_map_write_to_img(somr_map_t *m, unsigned char *img, unsigned int img_width, unsigned int img_height, unsigned char *colors, unsigned int border);

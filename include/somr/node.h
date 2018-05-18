@@ -20,6 +20,7 @@ typedef struct somr_node_t {
 
 void somr_node_init(somr_node_t *n, unsigned int features_count);
 void somr_node_init_weights(somr_node_t *n, double *weights, unsigned int features_count);
+void somr_node_init_random_weights(somr_node_t *n, unsigned int *rand_state, unsigned int features_count);
 void somr_node_clear(somr_node_t *n);
 /** activate node with euclidean distance from @p vector */
 void somr_node_activate(somr_node_t *n, somr_data_vector_t *data_vector, unsigned int features_count);
@@ -29,4 +30,3 @@ brings weights of node closer to values of input vector @p vector
 */
 void somr_node_learn(somr_node_t *n, somr_data_vector_t *data_vector, unsigned int features_count, double learn_rate);
 void somr_node_add_child(somr_node_t *n, unsigned int features_count);
-void somr_node_compute_error(somr_node_t *n, somr_dataset_t *dataset);

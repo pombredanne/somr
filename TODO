@@ -1,13 +1,12 @@
-- no deepen if node data set length < 4?
-- replace dist_euclid with dist_euclid_square?
-- max_depth safety net
-- avoid copy of class_list?
+- find hierarchical data set
+- check orientation with better data set
 - pick best radius formula
-- faster neighborhood ?
-- fix mem leak
-- write_to_img crash if network is too deep for img resolution
-- use rand_r insteead of rand
-- rename lambda/tau_1/tau_2 or learn_rate?
-- check Makefile
-- comment
-- use q_error in write_to_img?
+- replace dist_euclid with dist_euclid_square where possible
+- rename lambda/tau_1/tau_2? or learn_rate->alpha?
+- faster neighborhood? put back bubble neighborhood?
+- randomize choice of bmu/most distant neighbor/error node when multiple found?
+- simplify insertion code
+- cleaner memory management of list and data_vector
+- write_to_img crashes if network is too deep for img resolution
+- comment code
+- limit usage of node_ids

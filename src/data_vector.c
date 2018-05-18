@@ -13,8 +13,12 @@ void somr_data_vector_init_batch(somr_data_vector_t *batch, unsigned int batch_s
     }
 }
 
-void somr_data_vector_clear_batch(somr_data_vector_t *batch) {
+void somr_data_vector_clear_batch(somr_data_vector_t *batch, unsigned int batch_size) {
+    assert(batch_size > 0);
     free(batch[0].weights);
+    for (unsigned int i = 0; i < batch_size; i++) {
+        batch[i].weights = NULL;
+    }
 }
 
 void somr_data_vector_normalize(somr_data_vector_t *v, unsigned int features_count) {
