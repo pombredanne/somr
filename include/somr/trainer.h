@@ -5,9 +5,9 @@
 
 typedef struct somr_trainer_settings_t {
     double learn_rate;
-    double tau_1;
-    double tau_2;
-    unsigned int lambda;
+    double spread_threshold;
+    double depth_threshold;
+    unsigned int iters_count;
     bool should_orient;
     unsigned int rand_state;
 } somr_trainer_settings_t;
@@ -32,5 +32,5 @@ main training function
 @p learn: initial learning rate
 */
 void somr_trainer_train(somr_trainer_t *t);
-/** label nodes using labels of input vectors (to be run when training is over */
+/** label units using labels of input vectors (to be run when training is over */
 void somr_trainer_label(somr_trainer_t *t);

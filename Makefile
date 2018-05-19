@@ -6,7 +6,7 @@ DEMO_TARGETS = bin/somrviz
 
 CC = gcc
 LD = $(CC)
-CFLAGS = -std=c11 -Wall -Wextra -Wno-sign-compare
+CFLAGS = -std=c11 -Wall -Wextra -Wno-sign-compare -Iinclude/
 LDFLAGS =
 
 ifeq ($(DEBUG), 1)
@@ -18,7 +18,7 @@ endif
 LIB_CFLAGS = -fPIC -Iinclude/$(PACKAGE)/
 LIB_LDFLAGS = -lm
 
-DEMO_CFLAGS = $(shell pkg-config --cflags libpng) -Iinclude/
+DEMO_CFLAGS =  -Iinclude/ $(shell pkg-config --cflags libpng)
 DEMO_LDFLAGS = -lm $(shell pkg-config --libs libpng)
 
 LIB_SRCS = $(wildcard src/*.c)

@@ -75,9 +75,9 @@ void somr_dataset_normalize(somr_dataset_t *d) {
     }
 }
 
-void somr_dataset_compute_avg(somr_dataset_t *d, double *avg_weights) {
+void somr_dataset_compute_mean_weights(somr_dataset_t *d, double *mean_weights) {
     for (unsigned int i = 0; i < d->features_count; i++) {
-        avg_weights[i] = 0.0;
+        mean_weights[i] = 0.0;
     }
 
     // sum all vectors
@@ -85,14 +85,14 @@ void somr_dataset_compute_avg(somr_dataset_t *d, double *avg_weights) {
         unsigned int real_index = d->indices[i];
         somr_data_vector_t *data_vector = &d->data_vectors[real_index];
         for (unsigned int j = 0; j < d->features_count; j++) {
-            avg_weights[j] += data_vector->weights[j];
+            mean_weights[j] += data_vector->weights[j];
         }
     }
 
     // get average for each feature
     for (unsigned int i = 0; i < d->features_count; i++) {
-        avg_weights[i] /= d->size;
-        assert(avg_weights[i] >= 0.0 && avg_weights[i] <= 1.0);
+        mean_weights[i] /= d->size;
+        assert(mean_weights[i] >= 0.0 && mean_weights[i] <= 1.0);
     }
 }
 

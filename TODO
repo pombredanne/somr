@@ -1,12 +1,12 @@
 - find hierarchical data set
 - check orientation with better data set
 - pick best radius formula
-- replace dist_euclid with dist_euclid_square where possible
-- rename lambda/tau_1/tau_2? or learn_rate->alpha?
-- faster neighborhood? put back bubble neighborhood?
-- randomize choice of bmu/most distant neighbor/error node when multiple found?
-- simplify insertion code
+- replace euclid_dist with euclid_dist_squared where possible
+- faster neighborhood code? put back bubble neighborhood?
+- randomize choice of bmu / most distant neighbor / error node when multiple found?
+- simplify spread code
 - cleaner memory management of list and data_vector
 - write_to_img crashes if network is too deep for img resolution
 - comment code
 - limit usage of node_ids
+

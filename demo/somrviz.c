@@ -22,22 +22,8 @@ unsigned char COLORS[] = {
     230, 190, 255,
 };
 
-void usage(char *exec_name) {
-    fprintf(stderr, "Usage: %s -n <nb_vectors> -f <nb_features> [options] <in.csv> <out.png>\n", exec_name);
-    fprintf(stderr, "Required:\n");
-    fprintf(stderr, "  -n <nb_vectors>\tNumber of input vectors\n");
-    fprintf(stderr, "  -f <nb_features>\tNumber of values per input vector [1-10]\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -l <learning_rate>\tInitial learning rate [default: 0.8]\n");
-    fprintf(stderr, "  -t <tau_1>\t\tNode insertion treshold [default: 0.05]\n");
-    fprintf(stderr, "  -u <tau_2>\t\tMap expansion treshold  [default: 0.01]\n");
-    fprintf(stderr, "  -v <lambda>\t\tNumber of iterations node insertion [default: 100]\n");
-    fprintf(stderr, "  -o\t\t\tSwitch off orientation\n");
-    fprintf(stderr, "  -s <seed>\t\tSeed for random number generator\n");
-}
-
 // feed all input vectors to network and check they are mapped to correct class
-void print_errors(somr_network_t *network, somr_dataset_t *dataset, unsigned int seed) {
+int print_errors(somr_network_t *network, somr_dataset_t *dataset, unsigned int seed) {
     printf("Testing input vectors classification\n");
     int error_count = 0;
     somr_dataset_shuffle(dataset, &seed);
@@ -45,11 +31,12 @@ void print_errors(somr_network_t *network, somr_dataset_t *dataset, unsigned int
         somr_data_vector_t *data_vector = somr_dataset_get_vector(dataset, i);
         somr_label_t label = somr_network_classify(network, data_vector);
         if (label != data_vector->label) {
-            printf("Error: %u mapped to %u\n", data_vector->label, label);
+            //printf("Error: %u mapped to %u\n", data_vector->label, label);
             error_count++;
         }
     }
-    printf("Total number of incorrectly mapped vectors: %u\n", error_count);
+    printf("Total number of classification errors: %u\n", error_count);
+    return error_count;
 }
 
 void write_img_to_png(FILE *file, unsigned char *img, unsigned int width, unsigned int height) {
@@ -88,6 +75,20 @@ void write_img_to_png(FILE *file, unsigned char *img, unsigned int width, unsign
     png_destroy_write_struct(&png, &png_info);
 }
 
+void usage(char *exec_name) {
+    fprintf(stderr, "Usage: %s -n <nb_vectors> -f <nb_features> [options] <in.csv> <out.png>\n", exec_name);
+    fprintf(stderr, "Required:\n");
+    fprintf(stderr, "  -n <nb_vectors>\t\tNumber of input vectors\n");
+    fprintf(stderr, "  -f <nb_features>\t\tNumber of values per input vector\n");
+    fprintf(stderr, "Options:\n");
+    fprintf(stderr, "  -l <learning_rate>\t\tInitial learning rate [default: 0.8]\n");
+    fprintf(stderr, "  -i <nb_iters>\t\t\tNumber of full training passes [default: 100]\n");
+    fprintf(stderr, "  -s <spread_threshold>\t\tUnit insertion treshold [default: 0.05]\n");
+    fprintf(stderr, "  -d <depth_threshold>\t\tChild map creation treshold  [default: 0.01]\n");
+    fprintf(stderr, "  -o\t\t\t\tSwitch off orientation\n");
+    fprintf(stderr, "  -r <random_seed>\t\t\tSeed for random number generator\n");
+}
+
 int main(int argc, char *argv[]) {
     if (argc == 1) {
         usage(argv[0]);
@@ -97,15 +98,15 @@ int main(int argc, char *argv[]) {
     int data_length = -1;
     int features_count = -1;
     double learn_rate = -1.0;
-    double tau_1 = -1.0;
-    double tau_2 = -1.0;
-    int lambda = -1.0;
+    double spread_threshold = -1.0;
+    double depth_threshold = -1.0;
+    int iters_count = -1.0;
     unsigned int seed;
     bool has_seed = false;
     bool should_orient = true;
 
     char opt;
-    while ((opt = getopt(argc, argv, "n:f:l:t:u:v:s:o")) != -1) {
+    while ((opt = getopt(argc, argv, "n:f:l:i:s:d:or:")) != -1) {
         switch (opt) {
         case 'n':
             data_length = atoi(optarg);
@@ -117,8 +118,16 @@ int main(int argc, char *argv[]) {
             break;
         case 'f':
             features_count = atoi(optarg);
-            if (features_count <= 0 || features_count > 10) {
+            if (features_count <= 0) {
                 fprintf(stderr, "Invalid number of values per input vector\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+            break;
+        case 'i':
+            iters_count = atoi(optarg);
+            if (iters_count < 0) {
+                fprintf(stderr, "Invalid number of full training passes\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -131,32 +140,24 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
             }
             break;
-        case 't':
-            tau_1 = atof(optarg);
-            if (tau_1 <= 0.0 || tau_1 > 1.0) {
-                fprintf(stderr, "Invalid tau 1\n");
-                usage(argv[0]);
-                exit(EXIT_FAILURE);
-            }
-            break;
-        case 'u':
-            tau_2 = atof(optarg);
-            tau_2 = atof(optarg);
-            if (tau_2 <= 0.0 || tau_2 > 1.0) {
-                fprintf(stderr, "Invalid tau 2\n");
-                usage(argv[0]);
-                exit(EXIT_FAILURE);
-            }
-            break;
-        case 'v':
-            lambda = atoi(optarg);
-            if (lambda < 0) {
-                fprintf(stderr, "Invalid lambda\n");
-                usage(argv[0]);
-                exit(EXIT_FAILURE);
-            }
-            break;
         case 's':
+            spread_threshold = atof(optarg);
+            if (spread_threshold <= 0.0 || spread_threshold > 1.0) {
+                fprintf(stderr, "Invalid spread threshold\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+            break;
+        case 'd':
+            depth_threshold = atof(optarg);
+            depth_threshold = atof(optarg);
+            if (depth_threshold <= 0.0 || depth_threshold > 1.0) {
+                fprintf(stderr, "Invalid depth_threshold\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+            break;
+        case 'r':
             seed = atoi(optarg);
             has_seed = true;
             break;
@@ -189,14 +190,14 @@ int main(int argc, char *argv[]) {
     if (learn_rate <= 0.0) {
         learn_rate = 0.8;
     }
-    if (tau_1 <= 0) {
-        tau_1 = 0.05;
+    if (spread_threshold <= 0) {
+        spread_threshold = 0.05;
     }
-    if (tau_2 <= 0) {
-        tau_2 = 0.01;
+    if (depth_threshold <= 0) {
+        depth_threshold = 0.01;
     }
-    if (lambda <= 0) {
-        lambda = 100;
+    if (iters_count <= 0) {
+        iters_count = 100;
     }
     if (!has_seed) {
         struct timeval time;
@@ -218,16 +219,21 @@ int main(int argc, char *argv[]) {
     fclose(file);
     somr_dataset_normalize(&dataset);
 
+    if (dataset.class_list->size > 10) {
+        fprintf(stderr, "Too many classes (> 10) found in input data\n");
+        exit(EXIT_FAILURE);
+    }
+
     // init and train network
     somr_network_t network;
     somr_network_init(&network, features_count);
 
     printf("Training settings:\n");
-    printf("  tau_1=%f\n  tau_2=%f\n  lambda=%u\n  learning_rate=%f\n  orient=%s\n  seed=%u\n",
-        tau_1, tau_2, lambda, learn_rate, should_orient ? "true" : "false", seed);
+    printf("  spread_threshold=%f\n  depth_threshold=%f\n  iters_count=%u\n  learning_rate=%f\n  orient=%s\n  seed=%u\n",
+        spread_threshold, depth_threshold, iters_count, learn_rate, should_orient ? "true" : "false", seed);
     printf("Training network...\n");
 
-    somr_network_train(&network, &dataset, learn_rate, tau_1, tau_2, lambda, should_orient, seed);
+    somr_network_train(&network, &dataset, learn_rate, spread_threshold, depth_threshold, iters_count, should_orient, seed);
 
     print_errors(&network, &dataset, seed);
 

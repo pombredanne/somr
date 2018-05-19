@@ -1,8 +1,8 @@
 #pragma once
 
-/** index of class assigned to a node or a vector */
+/** index of class assigned to a unit or a vector */
 typedef int somr_label_t;
-/** label value for nodes with no labels */
+/** label value for units with no labels */
 #define SOMR_EMPTY_LABEL -1
 
 typedef struct somr_data_vector_t {

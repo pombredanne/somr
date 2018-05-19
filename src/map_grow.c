@@ -5,7 +5,7 @@
 #include <string.h>
 
 typedef enum somr_octant_t {
-    // preserve order so that first 4 octants matches nodes in new 2x2 map
+    // preserve order so that first 4 octants matches units in new 2x2 map
     SOMR_OCTANT_UP_LEFT,
     SOMR_OCTANT_UP_RIGHT,
     SOMR_OCTANT_DOWN_LEFT,
@@ -17,42 +17,42 @@ typedef enum somr_octant_t {
     SOMR_OCTANT_NONE
 } somr_octant_t;
 
-static void somr_map_orient_child(somr_map_t *m, somr_node_id_t node_id);
-static void somr_map_init_up_left_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs);
-static void somr_map_init_up_right_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs);
-static void somr_map_init_down_left_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs);
-static void somr_map_init_down_right_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs);
+static void somr_map_orient_child(somr_map_t *m, somr_unit_id_t unit_id);
+static void somr_map_init_up_left_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs);
+static void somr_map_init_up_right_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs);
+static void somr_map_init_down_left_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs);
+static void somr_map_init_down_right_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs);
 
 void somr_map_insert_row(somr_map_t *m, unsigned int row_before) {
     assert(row_before + 1 < m->height);
 
-    unsigned int new_nodes_count = m->nodes_count + m->width;
-    somr_node_t *new_nodes = malloc(sizeof(somr_node_t) * new_nodes_count);
-    unsigned int nodes_count_before = (row_before + 1) * m->width;
-    unsigned int nodes_count_after = m->nodes_count - nodes_count_before;
+    unsigned int new_units_count = m->units_count + m->width;
+    somr_unit_t *new_units = malloc(sizeof(somr_unit_t) * new_units_count);
+    unsigned int units_count_before = (row_before + 1) * m->width;
+    unsigned int units_count_after = m->units_count - units_count_before;
 
-    memcpy(&new_nodes[0], &m->nodes[0], sizeof(somr_node_t) * nodes_count_before);
-    somr_node_id_t src_node_id = nodes_count_before;
-    somr_node_id_t dest_node_id = nodes_count_before + m->width;
+    memcpy(&new_units[0], &m->units[0], sizeof(somr_unit_t) * units_count_before);
+    somr_unit_id_t src_unit_id = units_count_before;
+    somr_unit_id_t dest_unit_id = units_count_before + m->width;
 
-    assert(src_node_id < m->nodes_count);
-    assert(dest_node_id < new_nodes_count);
-    memcpy(&new_nodes[dest_node_id], &m->nodes[src_node_id], sizeof(somr_node_t) * nodes_count_after);
+    assert(src_unit_id < m->units_count);
+    assert(dest_unit_id < new_units_count);
+    memcpy(&new_units[dest_unit_id], &m->units[src_unit_id], sizeof(somr_unit_t) * units_count_after);
 
-    free(m->nodes);
-    m->nodes = new_nodes;
-    m->nodes_count = new_nodes_count;
+    free(m->units);
+    m->units = new_units;
+    m->units_count = new_units_count;
     m->height += 1;
 
-    // init nodes in inserted row with meam weights
-    for (somr_node_id_t i = src_node_id; i < dest_node_id; i++) {
-        somr_node_t *node = &m->nodes[i];
-        somr_node_init(node, m->features_count);
+    // init units in inserted row with meam weights
+    for (somr_unit_id_t i = src_unit_id; i < dest_unit_id; i++) {
+        somr_unit_t *unit = &m->units[i];
+        somr_unit_init(unit, m->features_count);
 
-        double *weights_before = m->nodes[i - m->width].weights;
-        double *weights_after = m->nodes[i + m->width].weights;
+        double *weights_before = m->units[i - m->width].weights;
+        double *weights_after = m->units[i + m->width].weights;
         for (unsigned int j = 0; j < m->features_count; j++) {
-            node->weights[j] = (weights_before[j] + weights_after[j]) / 2.0;
+            unit->weights[j] = (weights_before[j] + weights_after[j]) / 2.0;
         }
     }
 }
@@ -60,99 +60,99 @@ void somr_map_insert_row(somr_map_t *m, unsigned int row_before) {
 void somr_map_insert_col(somr_map_t *m, unsigned int col_before) {
     assert(col_before + 1 < m->width);
 
-    unsigned int new_nodes_count = m->nodes_count + m->height;
-    somr_node_t *new_nodes = malloc(sizeof(somr_node_t) * new_nodes_count);
+    unsigned int new_units_count = m->units_count + m->height;
+    somr_unit_t *new_units = malloc(sizeof(somr_unit_t) * new_units_count);
     unsigned int cols_count_before = col_before + 1;
     unsigned int cols_count_after = m->width - cols_count_before;
 
-    somr_node_id_t src_node_id = 0;
-    somr_node_id_t dest_node_id = 0;
-    while (src_node_id < m->nodes_count) {
-        memcpy(&new_nodes[dest_node_id], &m->nodes[src_node_id], sizeof(somr_node_t) * cols_count_before);
-        src_node_id += cols_count_before;
-        dest_node_id += cols_count_before + 1;
+    somr_unit_id_t src_unit_id = 0;
+    somr_unit_id_t dest_unit_id = 0;
+    while (src_unit_id < m->units_count) {
+        memcpy(&new_units[dest_unit_id], &m->units[src_unit_id], sizeof(somr_unit_t) * cols_count_before);
+        src_unit_id += cols_count_before;
+        dest_unit_id += cols_count_before + 1;
 
-        memcpy(&new_nodes[dest_node_id], &m->nodes[src_node_id], sizeof(somr_node_t) * cols_count_after);
-        src_node_id += cols_count_after;
-        dest_node_id += cols_count_after;
+        memcpy(&new_units[dest_unit_id], &m->units[src_unit_id], sizeof(somr_unit_t) * cols_count_after);
+        src_unit_id += cols_count_after;
+        dest_unit_id += cols_count_after;
     }
-    assert(src_node_id == m->nodes_count);
-    assert(dest_node_id == new_nodes_count);
+    assert(src_unit_id == m->units_count);
+    assert(dest_unit_id == new_units_count);
 
-    free(m->nodes);
-    m->nodes = new_nodes;
-    m->nodes_count = new_nodes_count;
+    free(m->units);
+    m->units = new_units;
+    m->units_count = new_units_count;
     m->width += 1;
 
-    // init nodes in inserted column with mean weights
-    for (somr_node_id_t i = col_before + 1; i < m->nodes_count; i += m->width) {
-        somr_node_t *node = &m->nodes[i];
-        somr_node_init(node, m->features_count);
+    // init units in inserted column with mean weights
+    for (somr_unit_id_t i = col_before + 1; i < m->units_count; i += m->width) {
+        somr_unit_t *unit = &m->units[i];
+        somr_unit_init(unit, m->features_count);
 
-        double *weights_before = m->nodes[i - 1].weights;
-        double *weights_after = m->nodes[i + 1].weights;
+        double *weights_before = m->units[i - 1].weights;
+        double *weights_after = m->units[i + 1].weights;
         for (unsigned int j = 0; j < m->features_count; j++) {
-            node->weights[j] = (weights_before[j] + weights_after[j]) / 2.0;
+            unit->weights[j] = (weights_before[j] + weights_after[j]) / 2.0;
         }
     }
 }
 
-void somr_map_add_child(somr_map_t *m, somr_node_id_t node_id, bool should_orient, unsigned int *rand_state) {
-    somr_node_t *node = &m->nodes[node_id];
-    somr_node_add_child(node, m->features_count);
+void somr_map_add_child(somr_map_t *m, somr_unit_id_t unit_id, bool should_orient, unsigned int *rand_state) {
+    somr_unit_t *unit = &m->units[unit_id];
+    somr_unit_add_child(unit, m->features_count);
 
     if (should_orient) {
-        somr_map_orient_child(m, node_id);
+        somr_map_orient_child(m, unit_id);
     } else {
-        somr_map_init_random_weights(node->child, rand_state);
+        somr_map_init_random_weights(unit->child, rand_state);
     }
 }
 
-static void somr_map_orient_child(somr_map_t *m, somr_node_id_t node_id) {
-    unsigned int node_y = node_id / m->width;
-    unsigned int node_x = node_id % m->width;
+static void somr_map_orient_child(somr_map_t *m, somr_unit_id_t unit_id) {
+    unsigned int unit_y = unit_id / m->width;
+    unsigned int unit_x = unit_id % m->width;
 
     // locate available neighbors in parent map
-    somr_node_t *nbs[8] = { NULL };
+    somr_unit_t *nbs[8] = { NULL };
 
-    if (node_y > 0) {
-        nbs[SOMR_OCTANT_UP] = &m->nodes[node_id - m->width];
-        if (node_x > 0) {
-            nbs[SOMR_OCTANT_UP_LEFT] = &m->nodes[node_id - m->width - 1];
+    if (unit_y > 0) {
+        nbs[SOMR_OCTANT_UP] = &m->units[unit_id - m->width];
+        if (unit_x > 0) {
+            nbs[SOMR_OCTANT_UP_LEFT] = &m->units[unit_id - m->width - 1];
         }
-        if (node_x < m->width - 1) {
-            nbs[SOMR_OCTANT_UP_RIGHT] = &m->nodes[node_id - m->width + 1];
-        }
-    }
-
-    if (node_y < m->height - 1) {
-        nbs[SOMR_OCTANT_DOWN] = &m->nodes[node_id + m->width];
-        if (node_x > 0) {
-            nbs[SOMR_OCTANT_DOWN_LEFT] = &m->nodes[node_id + m->width - 1];
-        }
-        if (node_x < m->width - 1) {
-            nbs[SOMR_OCTANT_DOWN_RIGHT] = &m->nodes[node_id + m->width - 1];
+        if (unit_x < m->width - 1) {
+            nbs[SOMR_OCTANT_UP_RIGHT] = &m->units[unit_id - m->width + 1];
         }
     }
 
-    if (node_x > 0) {
-        nbs[SOMR_OCTANT_LEFT] = &m->nodes[node_id - 1];
-    }
-    if (node_x < m->width - 1) {
-        nbs[SOMR_OCTANT_RIGHT] = &m->nodes[node_id + 1];
+    if (unit_y < m->height - 1) {
+        nbs[SOMR_OCTANT_DOWN] = &m->units[unit_id + m->width];
+        if (unit_x > 0) {
+            nbs[SOMR_OCTANT_DOWN_LEFT] = &m->units[unit_id + m->width - 1];
+        }
+        if (unit_x < m->width - 1) {
+            nbs[SOMR_OCTANT_DOWN_RIGHT] = &m->units[unit_id + m->width - 1];
+        }
     }
 
-    somr_node_t *parent = &m->nodes[node_id];
+    if (unit_x > 0) {
+        nbs[SOMR_OCTANT_LEFT] = &m->units[unit_id - 1];
+    }
+    if (unit_x < m->width - 1) {
+        nbs[SOMR_OCTANT_RIGHT] = &m->units[unit_id + 1];
+    }
+
+    somr_unit_t *parent = &m->units[unit_id];
     // init child map with weights from neighbors of parent in parent map
-    somr_map_init_up_left_weights(m->nodes[node_id].child, parent, nbs);
-    somr_map_init_up_right_weights(m->nodes[node_id].child, parent, nbs);
-    somr_map_init_down_left_weights(m->nodes[node_id].child, parent, nbs);
-    somr_map_init_down_right_weights(m->nodes[node_id].child, parent, nbs);
+    somr_map_init_up_left_weights(m->units[unit_id].child, parent, nbs);
+    somr_map_init_up_right_weights(m->units[unit_id].child, parent, nbs);
+    somr_map_init_down_left_weights(m->units[unit_id].child, parent, nbs);
+    somr_map_init_down_right_weights(m->units[unit_id].child, parent, nbs);
 }
 
-static void somr_map_init_up_left_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs) {
-    assert(m->nodes_count == 4);
-    somr_node_t *node = &m->nodes[SOMR_OCTANT_UP_LEFT];
+static void somr_map_init_up_left_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs) {
+    assert(m->units_count == 4);
+    somr_unit_t *unit = &m->units[SOMR_OCTANT_UP_LEFT];
 
     double *orientation_weights[5] = {
         parent->weights,
@@ -173,12 +173,12 @@ static void somr_map_init_up_left_weights(somr_map_t *m, somr_node_t *parent, so
         orientation_weights_count++;
     }
     //assert(orientation_weights_count > 1);
-    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, node->weights);
+    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, unit->weights);
 }
 
-static void somr_map_init_up_right_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs) {
-    assert(m->nodes_count == 4);
-    somr_node_t *node = &m->nodes[SOMR_OCTANT_UP_RIGHT];
+static void somr_map_init_up_right_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs) {
+    assert(m->units_count == 4);
+    somr_unit_t *unit = &m->units[SOMR_OCTANT_UP_RIGHT];
 
     double *orientation_weights[5] = {
         parent->weights,
@@ -199,12 +199,12 @@ static void somr_map_init_up_right_weights(somr_map_t *m, somr_node_t *parent, s
         orientation_weights_count++;
     }
     //assert(orientation_weights_count > 1);
-    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, node->weights);
+    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, unit->weights);
 }
 
-static void somr_map_init_down_left_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs) {
-    assert(m->nodes_count == 4);
-    somr_node_t *node = &m->nodes[SOMR_OCTANT_DOWN_LEFT];
+static void somr_map_init_down_left_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs) {
+    assert(m->units_count == 4);
+    somr_unit_t *unit = &m->units[SOMR_OCTANT_DOWN_LEFT];
 
     double *orientation_weights[5] = {
         parent->weights,
@@ -228,12 +228,12 @@ static void somr_map_init_down_left_weights(somr_map_t *m, somr_node_t *parent, 
         orientation_weights_count++;
     }
     //assert(orientation_weights_count > 1);
-    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, node->weights);
+    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, unit->weights);
 }
 
-static void somr_map_init_down_right_weights(somr_map_t *m, somr_node_t *parent, somr_node_t **parent_nbs) {
-    assert(m->nodes_count == 4);
-    somr_node_t *node = &m->nodes[SOMR_OCTANT_DOWN_RIGHT];
+static void somr_map_init_down_right_weights(somr_map_t *m, somr_unit_t *parent, somr_unit_t **parent_nbs) {
+    assert(m->units_count == 4);
+    somr_unit_t *unit = &m->units[SOMR_OCTANT_DOWN_RIGHT];
 
     double *orientation_weights[5] = {
         parent->weights,
@@ -254,5 +254,5 @@ static void somr_map_init_down_right_weights(somr_map_t *m, somr_node_t *parent,
         orientation_weights_count++;
     }
     //assert(orientation_weights_count > 1);
-    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, node->weights);
+    somr_vectors_mean(orientation_weights, orientation_weights_count, m->features_count, unit->weights);
 }
