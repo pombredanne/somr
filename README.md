@@ -22,7 +22,7 @@ In order to preserve the usefulness of the resulting topography as a visualizati
 
 Here is a typical output for a run on the [Iris dataset][2] with parameters *τ1* = 0.05 and *τ2* = 0.01, with a treemap-like visualization:
 
-![][https://raw.githubusercontent.com/olvb/somr/master/samples/iris.png]
+![](https://raw.githubusercontent.com/olvb/somr/master/samples/iris.png)
 
 [2]: https://archive.ics.uci.edu/ml/datasets/iris
 
