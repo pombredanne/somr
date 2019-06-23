@@ -30,3 +30,5 @@ Here is a typical output for a run on the [Iris dataset][2] with parameters *τ1
 
 TODO: Test on a dataset actually actually having a hierarchical structure... One application could be audio categorization (music genre, sound banks, etc), such as described [here][3].
 
+[3]: http://www.ifs.tuwien.ac.at/~andi/somejb/
+
